@@ -57,6 +57,7 @@ void MainGame::createMap()
     // マップ作成
     auto map = make_unique<GameObject>();
 
+
     // 各ブロック作成
     for (int i = 0; i < MapData::getInstance()->getWidth(); i++)
     {
@@ -112,6 +113,16 @@ void MainGame::createMap()
             }
             break;
 
+            case 'P':
+            {
+                PlayerPosition = Vector3(
+                    i * 2 - float(MapData::getInstance()->getWidth() / 2) * 2,
+                    -0.5f,
+                    j * -2 + float(MapData::getInstance()->getHeight() / 2) * 2
+                );
+            }
+            break;
+
             default:
                 break;
             }
@@ -156,7 +167,9 @@ unique_ptr<UniDx::Scene> MainGame::CreateScene()
     model->Load<VertexSkin>(
         u8"resource/mini_emma.glb",
         u8"resource/SkinBasic.hlsl");
-    playerObj->transform->localPosition = Vector3(0, -1, 0);
+
+    Vector3 p = PlayerPosition;
+    playerObj->transform->localPosition = PlayerPosition;
     playerObj->transform->localRotation = Quaternion::Euler(0, 180, 0);
 
     // -- カメラ --
@@ -193,7 +206,7 @@ unique_ptr<UniDx::Scene> MainGame::CreateScene()
     font->Load(u8"resource/M PLUS 1.spritefont");
     auto textMesh = make_unique<TextMesh>();
     textMesh->font = font;
-    textMesh->text = u8"WASD:いどう\nIJKL:カメラ\nOP:ライト";
+    textMesh->text = u8"WASD:いどう\nIJKL:カメラ\nOP:ライト\nSpace:ジャンプ";
 
     auto textObj = make_unique<GameObject>(u8"テキスト", textMesh);
     textObj->transform->localPosition = Vector3(100, 20, 0);

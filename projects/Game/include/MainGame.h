@@ -19,10 +19,12 @@ public:
 
     unique_ptr<UniDx::Scene> CreateScene();
 
+
+
 protected:
     int score = 0;
     unique_ptr<UniDx::GameObject> mapObj;
     UniDx::TextMesh* scoreTextMesh;
-
+    Vector3 PlayerPosition;
     void createMap();
 };

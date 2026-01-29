@@ -23,4 +23,6 @@ private:
     std::vector<UniDx::Transform*> bones;
     std::vector<UniDx::Quaternion> initialRotate;
     float animFrame;
+
+    bool isGrounded;
 };
