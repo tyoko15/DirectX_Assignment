@@ -32,6 +32,13 @@ void MainGame::createMap()
     MapData::create();
     MapData::getInstance()->load("resource/map_data.txt");
 
+    // マップのサイズを取得
+    const int mapW = MapData::getInstance()->getWidth();
+    const int mapH = MapData::getInstance()->getHeight();
+    // 中心を (0, 0, 0) にするためのオフセット計算
+    const float offsetX = (mapW - 1) * 1.0f;
+    const float offsetZ = (mapH - 1) * 1.0f;
+
     // マテリアルの作成
     auto wallMat = std::make_shared<Material>();
     auto floorMat = std::make_shared<Material>();
@@ -59,38 +66,51 @@ void MainGame::createMap()
 
 
     // 各ブロック作成
-    for (int i = 0; i < MapData::getInstance()->getWidth(); i++)
+    for (int j = 0; j < mapH; j++) // 外側を縦（Z軸）
     {
-        for (int j = 0; j < MapData::getInstance()->getHeight(); j++)
+        for (int i = 0; i < mapW; i++) // 内側を横（X軸）
         {
-            switch (MapData::getInstance()->getData(i, j))
+            // グリッド座標からワールド座標への変換
+            // i*2, j*2 で配置する場合の計算
+            float posX = i * 2.0f - offsetX;
+            float posZ = j * -2.0f + offsetZ;
+
+            char chip = MapData::getInstance()->getData(i, j);
+
+            switch (chip)
             {
-            case '#':
+            case '#': // 壁
             {
                 auto rb = make_unique<Rigidbody>();
                 rb->gravityScale = 0;
                 rb->mass = numeric_limits<float>::infinity();
 
-                // 壁オブジェクトを作成
                 auto wall = make_unique<GameObject>(u8"壁",
                     CubeRenderer::create<VertexPNT>(wallMat),
                     move(rb),
                     make_unique<AABBCollider>());
-                wall->transform->localScale = Vector3(2, 2, 2);
-                wall->transform->localPosition = Vector3(
-                    i * 2 - float(MapData::getInstance()->getWidth() / 2) * 2,
-                    0,
-                    j * -2 + float(MapData::getInstance()->getHeight() / 2) * 2
-                );
 
-                // 壁の親をマップにする
+                wall->transform->localScale = Vector3(2, 2, 2);
+                wall->transform->localPosition = Vector3(posX, 0, posZ);
                 Transform::SetParent(move(wall), map->transform);
+            }
+            break;
+
+            case 'P': // プレイヤー開始位置
+            {
+                // プレイヤーの座標を保存（Yは足元が地面に着く高さに調整）
+                PlayerPosition = Vector3(posX, 0.0f, posZ);
+                // デバッグ用ログ
+                char buf[128];
+                sprintf_s(buf, "Player Start Pos: %.2f, %.2f, %.2f\n", posX, 0.0f, posZ);
+                OutputDebugStringA(buf);
             }
             break;
 
             case 'C':
             {
                 // コインオブジェクトを作成
+
                 auto coin = make_unique<GameObject>(u8"Coin",
                     make_unique<GltfModel>(),
                     make_unique<Rigidbody>(),
@@ -100,34 +120,17 @@ void MainGame::createMap()
                 model->Load<VertexPN>(
                     u8"resource/coin.glb",
                     coinMat);
-
-                coin->transform->localPosition = Vector3(
-                    i * 2 - float(MapData::getInstance()->getWidth() / 2) * 2,
-                    -0.5f,
-                    j * -2 + float(MapData::getInstance()->getHeight() / 2) * 2
-                );
-                coin->transform->localScale = Vector3(3, 3, 3);
+                coin->transform->localPosition = Vector3(posX, -5, posZ);
+                coin->transform->localScale = Vector3(1, 1, 1);
 
                 // コインの親をマップにする
                 Transform::SetParent(move(coin), map->transform);
-            }
-            break;
+                }
 
-            case 'P':
-            {
-                PlayerPosition = Vector3(
-                    i * 2 - float(MapData::getInstance()->getWidth() / 2) * 2,
-                    -0.5f,
-                    j * -2 + float(MapData::getInstance()->getHeight() / 2) * 2
-                );
-            }
-            break;
-
-            default:
                 break;
             }
 
-            // 床
+            // 床の生成（2x2タイルごとに1枚大きな床を敷く現在の仕様を維持）
             if (i % 2 == 0 && j % 2 == 0)
             {
                 auto rb = make_unique<Rigidbody>();
@@ -138,24 +141,21 @@ void MainGame::createMap()
                     move(rb),
                     make_unique<AABBCollider>());
                 floor->transform->localScale = Vector3(4, 1, 4);
-                floor->transform->localPosition = Vector3(
-                    i * 2 - float(MapData::getInstance()->getWidth() / 2) * 2 + 1.0f,
-                    -1.5f,
-                    j * -2 + float(MapData::getInstance()->getHeight() / 2) * 2 - 1.0f
-                );
-
-                // 壁の親をマップにする
+                // 床の位置も posX, posZ を基準に微調整
+                floor->transform->localPosition = Vector3(posX + 1.0f, -1.5f, posZ - 1.0f);
                 Transform::SetParent(move(floor), map->transform);
             }
         }
     }
-
     mapObj = move(map);
 }
 
 
 unique_ptr<UniDx::Scene> MainGame::CreateScene()
 {
+    // 1. 先にマップを作成して PlayerPosition を確定させる
+    createMap();
+
     // -- プレイヤー --
     auto playerObj = make_unique<GameObject>(u8"プレイヤー",
         make_unique<GltfModel>(),
